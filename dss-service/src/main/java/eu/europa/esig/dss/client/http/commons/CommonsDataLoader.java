@@ -468,16 +468,21 @@ public class CommonsDataLoader implements DataLoader, DSSNotifier {
 			}
 
 			final DirContext ctx = new InitialDirContext(env);
-			final Attributes attributes = ctx.getAttributes(StringUtils.EMPTY, new String[] { attributeName });
-			if (attributes == null || attributes.size() < 1) {
-				LOG.warn("Cannot download CRL from: " + urlString + ", no attributes with name: " + attributeName + " returned");
-			} else {
-				final Attribute attribute = attributes.getAll().next();
-				final byte[] ldapBytes = (byte[]) attribute.get();
-				if (ArrayUtils.isNotEmpty(ldapBytes)) {
-					return ldapBytes;
-				}
+			final Attributes attributes = ctx.getAttributes(StringUtils.EMPTY);
+
+            Attribute attribute = attributes.get(attributeName);
+ 			if (attribute == null) {
+ 				attribute = attributes.get("certificateRevocationList;binary");
+ 				if (attribute == null) {
+ 					throw new Exception("LDAP CRL attribute is missing, cannot download CRL from: " + urlString);
+ 				}	
+ 			}
+
+			final byte[] ldapBytes = (byte[]) attribute.get();
+			if (ArrayUtils.isEmpty(ldapBytes)) {
+				throw new DSSException("Cannot download CRL from: " + urlString);
 			}
+			return ldapBytes;
 		} catch (Exception e) {
 			LOG.warn(e.getMessage(), e);
 		}
